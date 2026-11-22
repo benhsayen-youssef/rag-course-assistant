@@ -1,0 +1,7 @@
+# Dépendances Python pour le workshop LLM & RAG
+
+chromadb
+sentence-transformers
+pandas
+python-dotenv
+requests
