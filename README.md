@@ -12,12 +12,12 @@ rag-course-assistant/
 ├── data/                 # ⚠️ Mets ici tes PDFs de cours (non committé si volumineux)
 ├── src/
 │   ├── ingest.py         # Étape 1 : extrait le texte des PDF et découpe en chunks
-│   ├── embed.py          # Étape 2 : crée les embeddings + base vectorielle ChromaDB
+│   ├── embed.py          # Étape 2 : crée les embeddings + index vectoriel local
 │   └── rag.py            # Étape 3 : pipeline RAG (question → réponse avec sources)
 ├── interface/
 │   ├── index.html        # Page d'accueil (frontpage HTML/CSS)
 │   └── style.css         # Mise en forme de la page
-└── db/                   # Créé automatiquement par ChromaDB (ne pas committer)
+└── db/                   # Index vectoriel local créé automatiquement (non committé)
 ```
 
 ## 🚀 Démarrage rapide
@@ -52,7 +52,7 @@ Dépose 3 à 5 fichiers PDF dans le dossier `data/`.
 # Étape 1 : ingestion des PDF
 python src/ingest.py
 
-# Étape 2 : embeddings + base vectorielle
+# Étape 2 : embeddings + index local
 python src/embed.py
 
 # Étape 3 : poser une question à ton assistant

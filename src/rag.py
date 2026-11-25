@@ -6,7 +6,7 @@ src/rag.py — Étape 3 du workshop RAG
 Ce script implémente le pipeline RAG complet :
 1. Pose une question (saisie utilisateur)
 2. Transforme la question en vecteur et recherche les passages les plus proches
-   dans la base vectorielle ChromaDB
+   dans l'index local
 3. Construit un prompt avec les passages trouvés + consigne de citation des sources
 4. Appelle un LLM (via une API gratuite, par exemple OpenRouter)
 5. Affiche la réponse avec les références (cours + page)
@@ -26,10 +26,8 @@ import os
 from pathlib import Path
 
 # Dossiers et fichiers
-DATA_DIR = Path("data")
-CHUNKS_FILE = DATA_DIR / "chunks.json"
 DB_DIR = Path("db")
-COLLECTION_NAME = "cours"
+EMBEDDINGS_FILE = DB_DIR / "embeddings.json"
 
 # Charger les variables d'environnement si python-dotenv est disponible
 try:
@@ -41,35 +39,45 @@ except ImportError:
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 
-def search_chroma(question, top_k=3):
+def search_embeddings(question, top_k=3):
     """
-    Recherche les `top_k` passages les plus proches de la question
-    dans la base vectorielle ChromaDB.
+    Recherche les `top_k` passages les plus proches de la question.
     """
     try:
-        import chromadb
+        from sentence_transformers import SentenceTransformer
     except ImportError:
         raise ImportError(
-            "❌ La bibliothèque 'chromadb' est nécessaire.\n"
-            "   Installe-la avec : pip install chromadb"
+            "❌ La bibliothèque 'sentence-transformers' est nécessaire.\n"
+            "   Installe-la avec : pip install sentence-transformers"
         )
 
-    if not DB_DIR.exists():
+    if not EMBEDDINGS_FILE.exists():
         raise FileNotFoundError(
-            f"❌ Le dossier {DB_DIR} est introuvable.\n"
+            f"❌ L'index {EMBEDDINGS_FILE} est introuvable.\n"
             "   Lance d'abord : python src/embed.py"
         )
 
-    client = chromadb.PersistentClient(path=str(DB_DIR))
-    collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    with open(EMBEDDINGS_FILE, "r", encoding="utf-8") as f:
+        index = json.load(f)
 
-    results = collection.query(
-        query_texts=[question],
-        n_results=top_k,
-        include=["documents", "metadatas", "distances"],
-    )
+    model = SentenceTransformer(index["model"])
+    query_embedding = model.encode(question, normalize_embeddings=True)
+    ranked_chunks = sorted(
+        index["chunks"],
+        key=lambda chunk: sum(
+            query_value * chunk_value
+            for query_value, chunk_value in zip(query_embedding, chunk["embedding"])
+        ),
+        reverse=True,
+    )[:top_k]
 
-    return results
+    return {
+        "documents": [[chunk["text"] for chunk in ranked_chunks]],
+        "metadatas": [[
+            {"source": chunk["source"], "page": chunk["page"]}
+            for chunk in ranked_chunks
+        ]],
+    }
 
 
 def build_prompt(question, context_chunks):
@@ -156,9 +164,9 @@ def main():
     print("🤖 Étape 3 : Pipeline RAG — Pose ta question !")
     print("=" * 50)
 
-    # Vérifier que la base vectorielle existe
-    if not DB_DIR.exists():
-        print(f"❌ Le dossier {DB_DIR} est introuvable.")
+    # Vérifier que l'index existe
+    if not EMBEDDINGS_FILE.exists():
+        print(f"❌ L'index {EMBEDDINGS_FILE} est introuvable.")
         print("   Lance d'abord : python src/embed.py")
         return
 
@@ -168,10 +176,10 @@ def main():
         print("❌ Question vide. Relance le script.")
         return
 
-    # Recherche dans ChromaDB
+    # Recherche dans l'index local
     print("\n🔍 Recherche des passages pertinents...")
     try:
-        results = search_chroma(question, top_k=3)
+        results = search_embeddings(question, top_k=3)
     except Exception as e:
         print(f"❌ Erreur lors de la recherche : {e}")
         return

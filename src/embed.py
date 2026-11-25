@@ -6,22 +6,22 @@ src/embed.py — Étape 2 du workshop RAG
 Ce script :
 1. Charge les chunks depuis data/chunks.json (créé par ingest.py)
 2. Transforme chaque chunk en vecteur (embedding) qui représente son sens
-3. Stocke les vecteurs dans une base vectorielle locale : ChromaDB (dossier db/)
-4. Persiste la base pour pouvoir la réutiliser plus tard
+3. Stocke les vecteurs dans un index local (dossier db/)
+4. Persiste l'index pour pouvoir le réutiliser plus tard
 
 Utilisation :
     python src/embed.py
 """
 
 import json
-import os
 from pathlib import Path
 
 # Dossiers et fichiers
 DATA_DIR = Path("data")
 CHUNKS_FILE = DATA_DIR / "chunks.json"
 DB_DIR = Path("db")
-COLLECTION_NAME = "cours"
+EMBEDDINGS_FILE = DB_DIR / "embeddings.json"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 
 def load_chunks():
@@ -36,50 +36,43 @@ def load_chunks():
 
 
 def main():
-    print("🔢 Étape 2 : Création des embeddings + base vectorielle ChromaDB...")
+    print("🔢 Étape 2 : Création des embeddings...")
 
     # 1. Charger les chunks
     chunks = load_chunks()
     print(f"   {len(chunks)} chunks chargés depuis {CHUNKS_FILE}")
 
-    # 2. Initialiser ChromaDB (en local, pas de serveur nécessaire)
     try:
-        import chromadb
+        from sentence_transformers import SentenceTransformer
     except ImportError:
         raise ImportError(
-            "❌ La bibliothèque 'chromadb' est nécessaire.\n"
-            "   Installe-la avec : pip install chromadb"
+            "❌ La bibliothèque 'sentence-transformers' est nécessaire.\n"
+            "   Installe-la avec : pip install sentence-transformers"
         )
 
-    client = chromadb.PersistentClient(path=str(DB_DIR))
-
-    # Créer ou récupérer la collection
-    collection = client.get_or_create_collection(name=COLLECTION_NAME)
-    print(f"   Collection ChromaDB '{COLLECTION_NAME}' prête (dossier {DB_DIR}/)")
-
-    # 3. Créer les embeddings et ajouter à ChromaDB
-    # ChromaDB peut calculer les embeddings automatiquement avec un modèle par défaut.
-    # On ajoute les documents un par un (ou par petit lot) avec leurs métadonnées.
-    ids = []
-    documents = []
-    metadatas = []
-
-    for i, chunk in enumerate(chunks):
-        ids.append(f"chunk_{i}")
-        documents.append(chunk["text"])
-        metadatas.append({
-            "source": chunk["source"],
-            "page": chunk["page"],
-        })
-
-    collection.add(
-        ids=ids,
-        documents=documents,
-        metadatas=metadatas,
+    model = SentenceTransformer(EMBEDDING_MODEL)
+    embeddings = model.encode(
+        [chunk["text"] for chunk in chunks],
+        normalize_embeddings=True,
+        show_progress_bar=True,
     )
 
-    print(f"\n✅ {len(documents)} embeddings créés et stockés dans ChromaDB.")
-    print(f"💾 Base vectorielle persistée dans : {DB_DIR.resolve()}")
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    index = {
+        "model": EMBEDDING_MODEL,
+        "chunks": [
+            {
+                **chunk,
+                "embedding": embedding.tolist(),
+            }
+            for chunk, embedding in zip(chunks, embeddings)
+        ],
+    }
+    with open(EMBEDDINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False)
+
+    print(f"\n✅ {len(chunks)} embeddings créés et stockés.")
+    print(f"💾 Index persisté dans : {EMBEDDINGS_FILE.resolve()}")
     print("\n👉 Tu peux maintenant lancer : python src/rag.py")
 
 
