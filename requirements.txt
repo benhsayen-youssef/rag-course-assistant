@@ -1,7 +1,7 @@
-# Dépendances Python pour le workshop LLM & RAG
+# Dépendances pour le workshop LLM & RAG
+# Aucune bibliothèque lourde requise : tout fonctionne avec la bibliothèque standard Python.
+# requests est optionnel uniquement si vous utilisez une clé API LLM (OpenRouter).
+# python-dotenv est optionnel pour charger le fichier .env.
 
-chromadb
-sentence-transformers
-pandas
-python-dotenv
 requests
+python-dotenv
