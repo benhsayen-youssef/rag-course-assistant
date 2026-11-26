@@ -1,29 +1,47 @@
+cat > interface/index.html << 'EOF'
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Assistant de Cours RAG</title>
-    <link href="style.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
     <header>
         <h1>🎓 Mon Assistant de Cours</h1>
         <p>Pose une question sur tes cours, l'IA répond avec les sources.</p>
     </header>
+
     <main>
-        <div id="interface">
-            <textarea id="question" placeholder="Tape ta question ici... (ex: Qu'est-ce qu'une balise &lt;div&gt; en HTML ?)"></textarea>
-            <button id="envoyer">Poser la question</button>
-        </div>
-        <div id="reponse">
-            <h3>Réponse :</h3>
+        <form id="formulaire">
+            <label for="question">Ta question</label>
+            <textarea
+                id="question"
+                name="question"
+                rows="4"
+                required
+                placeholder="Tape ta question ici... (ex : Qu'est-ce qu'une balise &lt;div&gt; en HTML ?)"></textarea>
+            <button type="submit" id="envoyer">Poser la question</button>
+        </form>
+
+        <section id="reponse" aria-live="polite">
+            <h2>Réponse</h2>
             <p id="texte-reponse">La réponse apparaîtra ici.</p>
-            <p id="sources" style="font-size:0.9em; font-style:italic;"></p>
-        </div>
+
+            <div id="sources" hidden>
+                <h3>Sources</h3>
+                <ul id="liste-sources"></ul>
+            </div>
+        </section>
     </main>
+
     <footer>
-        <p>&copy; Workshop LLM & RAG — Étudiants</p>
+        <p>&copy; Workshop LLM &amp; RAG — Étudiants</p>
     </footer>
+
+    <script src="script.js"></script>
 </body>
 </html>
+EOF
